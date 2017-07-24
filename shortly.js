@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var bcrypt = require('bcrypt-nodejs');
+var Session = require('express-session');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -25,12 +26,43 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(Session({
+  secret: 'DOGSDOGSDOGS',
+  resave: true,
+  saveUninitalized: true
+}));
 
 
 app.post('/login', function(req, res) {
-  authenticated = true;
-  res.render('index');
-  res.end();
+  var user = req.body.username;
+  var hashed;
+
+  new User({'username': req.body.username}).fetch().then(function(found) {
+    console.log('FOUND IS', found.attributes);
+    if (!found) {
+      console.log('Username not found');
+      res.render('login');
+    } else {
+      hashed = found.attributes.password;
+
+      bcrypt.compare(req.body.password, hashed, function(err, match) { 
+        if (err) {
+          console.log(err);
+        } else {
+          if (match) {
+            req.session.access = true;
+            res.render('index');
+            res.end();
+          } else {
+            console.log('invalid password');
+            res.render('login');
+            res.end();
+          }
+        }
+      });
+      
+    }
+  });
 });
 
 app.get('/signup', function(req, res) {
@@ -62,39 +94,44 @@ app.post('/signup', function(req, res) {
 });
 
 app.get('/logout', function(req, res) {
-  authenticated = false;
+  req.session.destroy(function(err) {
+    if (err) {
+      console.log('ERROR', err);
+    }
+  });
   res.render('login');
   res.end();
 });
 
-const isAuthenticated = function(err, res, next) {
-  if (!authenticated) {
-    res.status(401).render('login');
-  } else {
+const isAuthenticated = function(req, res, next) {
+  if (req.session.access) {
     next();
+  } else {
+    res.status(401);
+    res.render('login');
   }
 };
 
-app.use(isAuthenticated);
+// app.use(isAuthenticated);
 
-app.get('/', 
+app.get('/', isAuthenticated,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create', isAuthenticated,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links', isAuthenticated,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links', isAuthenticated,
 function(req, res) {
   var uri = req.body.url;
 
