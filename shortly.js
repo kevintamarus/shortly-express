@@ -12,6 +12,8 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
+var authenticated = false;
+
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -22,6 +24,22 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+
+app.post('/login', function(req, res) {
+  console.log(req.body);
+  res.render('login');
+  res.end();
+});
+
+const isAuthenticated = function(err, res, next) {
+  if (!authenticated) {
+    res.status(401).render('login');
+  } else {
+    next();
+  }
+};
+
+app.use(isAuthenticated);
 
 app.get('/', 
 function(req, res) {
