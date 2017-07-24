@@ -15,6 +15,8 @@ var app = express();
 var authenticated = false;
 
 
+
+
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
@@ -26,7 +28,41 @@ app.use(express.static(__dirname + '/public'));
 
 
 app.post('/login', function(req, res) {
-  console.log(req.body);
+  authenticated = true;
+  res.render('index');
+  res.end();
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+  res.end();
+});
+
+app.post('/signup', function(req, res) {
+  new User ({'username': req.body.username}).fetch().then(function(found) {
+    if (found) {
+      console.log('fail');
+      res.render('signup');
+      res.end();
+    } else {
+      console.log('success');
+
+      Users.create({
+        username: req.body.username,
+        password: req.body.password
+      })
+        .then(function(newUser) {
+          res.status(201);
+        });
+
+      res.render('login');
+      res.end();
+    }
+  });
+});
+
+app.get('/logout', function(req, res) {
+  authenticated = false;
   res.render('login');
   res.end();
 });
